@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Охотник за микроприятностями</title>
+<style>
+:root{--bg:#f5f1e9;--card:#fffdf9;--text:#2f312c;--muted:#6f716a;--line:#ddd6ca;--olive:#78846d;--lav:#8e86b7;--soft:#ece7dc}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+.wrap{max-width:880px;margin:auto;padding:24px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;margin:16px 0}
+h1,h2{font-family:Georgia,serif;font-weight:500} h1{font-size:40px;margin:0 0 10px} h2{font-size:25px;margin:0 0 4px}
+.lead{font-size:18px}.note{background:var(--soft);border-left:4px solid var(--olive);padding:13px 15px;border-radius:10px}
+label{display:block;font-weight:700;margin:14px 0 7px}
+textarea{width:100%;min-height:78px;border:1px solid #d6cfc3;border-radius:11px;padding:11px;font:inherit;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px}.pill input{display:none}.pill span{display:inline-block;border:1px solid #d6cfc3;padding:8px 11px;border-radius:999px;background:#fff;cursor:pointer}
+.pill input:checked+span{background:#edf0e8;border-color:var(--olive);font-weight:700}
+.rangehead{display:flex;justify-content:space-between;gap:10px;align-items:center}.badge{background:#ece8f4;padding:4px 10px;border-radius:999px;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--lav)} .small{font-size:12px;color:var(--muted)}
+.done{display:flex;gap:8px;align-items:center;margin-top:16px}.done label{margin:0;font-weight:400}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}button{border:0;border-radius:11px;padding:11px 14px;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:var(--olive);color:white}.secondary{background:#e8e4f1;color:#4e486c}.ghost{background:#ece7de}
+.progress{height:9px;background:#e5dfd4;border-radius:999px;overflow:hidden}.progress div{height:100%;width:0;background:linear-gradient(90deg,var(--olive),var(--lav))}
+#printSummary{display:none}
+@media(max-width:600px){h1{font-size:33px}.card{padding:17px}}
+@media print{
+  body{background:white}
+  .screen{display:none!important}
+  #printSummary{display:block!important}
+  #printSummary .print-day{border-bottom:1px solid #bbb;padding:12px 0;break-inside:avoid}
+  #printSummary h1{font-size:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap screen">
+  <section class="card">
+    <h1>Охотник за микроприятностями</h1>
+    <p class="lead">Небольшое исследование на 5 дней: замечать то, что делает день хотя бы на каплю легче, спокойнее или приятнее.</p>
+    <div class="note"><b>Важно:</b> здесь не нужно заставлять себя радоваться. Не ищите «счастье». Достаточно заметить момент, который был чуть лучше нейтрального — даже на 1%.</div>
+    <p class="small" style="margin-top:14px">Ответы сохраняются только в браузере на этом устройстве и не отправляются на сайт.</p>
+    <div style="display:flex;justify-content:space-between;margin:14px 0 6px"><span>Заполнено дней</span><span id="ptext">0 из 5</span></div>
+    <div class="progress"><div id="pbar"></div></div>
+  </section>
+  <div id="days"></div>
+  <section class="card">
+    <h2>В конце недели</h2>
+    <label>Что повторялось чаще всего?</label>
+    <textarea id="repeat" data-save placeholder="Например: тишина, прогулка, красивый свет, музыка, отсутствие спешки..."></textarea>
+    <label>Что из этого хочется попробовать еще раз?</label>
+    <textarea id="again" data-save placeholder="Можно выбрать одну маленькую вещь."></textarea>
+    <label>Что я заметила о себе?</label>
+    <textarea id="discover" data-save placeholder="Подойдет любое наблюдение — даже «мне пока трудно замечать приятное»."></textarea>
+    <div class="actions">
+      <button class="primary" onclick="makePDF()">Сохранить как PDF</button>
+      <button class="secondary" onclick="downloadTXT()">Сохранить как текст</button>
+      <button class="ghost" onclick="clearAll()">Очистить</button>
+    </div>
+    <p class="small">Кнопка «Сохранить как PDF» откроет окно печати браузера. Выберите «Сохранить как PDF».</p>
+  </section>
+</div>
+
+<div id="printSummary"></div>
+
+<script>
+const PREFIX='micropractice_v2_';
+const days=document.getElementById('days');
+for(let i=0;i<5;i++){
+  days.insertAdjacentHTML('beforeend',`
+  <section class="card">
+    <h2>День ${i+1}</h2>
+    <p class="small">Один маленький эпизод — этого достаточно.</p>
+    <label>Сегодня было немного лучше / спокойнее / легче, когда…</label>
+    <textarea id="event_${i}" data-save placeholder="Например: выпила чай в тишине; увидела красивое небо; вышла пройтись одна."></textarea>
+    <label>Это было больше про…</label>
+    <div class="row">
+      ${['удовольствие','восстановление','и то и другое','пока не понимаю'].map(v=>`<label class="pill"><input type="radio" name="kind_${i}" value="${v}" data-save><span>${v}</span></label>`).join('')}
+    </div>
+    <label>Насколько заметен был этот маленький сдвиг?</label>
+    <div class="rangehead"><span class="small">0 — почти не заметила</span><span id="val_${i}" class="badge">1</span></div>
+    <input id="shift_${i}" type="range" min="0" max="10" value="1" data-save oninput="document.getElementById('val_${i}').textContent=this.value">
+    <label>Что именно в этом моменте было приятным или восстанавливающим?</label>
+    <textarea id="detail_${i}" data-save placeholder="Например: тепло, тишина, интерес, красота, свобода, движение, вкус..."></textarea>
+    <div class="done"><input id="done_${i}" type="checkbox" data-save><label for="done_${i}">Я просто заметила этот момент. Этого достаточно.</label></div>
+  </section>`);
+}
+function key(el){return PREFIX+(el.type==='radio'?el.name:el.id)}
+function save(el){
+  if(el.type==='radio'){if(el.checked)localStorage.setItem(key(el),el.value)}
+  else if(el.type==='checkbox')localStorage.setItem(key(el),el.checked?'1':'0')
+  else localStorage.setItem(key(el),el.value);
+  progress();
+}
+function restore(){
+  document.querySelectorAll('[data-save]').forEach(el=>{
+    const v=localStorage.getItem(key(el)); if(v===null)return;
+    if(el.type==='radio')el.checked=el.value===v;
+    else if(el.type==='checkbox')el.checked=v==='1';
+    else el.value=v;
+    if(el.type==='range')document.getElementById(el.id.replace('shift_','val_')).textContent=el.value;
+  }); progress();
+}
+document.addEventListener('input',e=>{if(e.target.matches('[data-save]'))save(e.target)});
+document.addEventListener('change',e=>{if(e.target.matches('[data-save]'))save(e.target)});
+function progress(){
+  let n=0; for(let i=0;i<5;i++) if(document.getElementById(`event_${i}`).value.trim()||document.getElementById(`done_${i}`).checked)n++;
+  document.getElementById('ptext').textContent=`${n} из 5`; document.getElementById('pbar').style.width=`${n*20}%`;
+}
+function radio(name){const e=document.querySelector(`input[name="${name}"]:checked`);return e?e.value:'—'}
+function esc(s){return (s||'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function buildSummary(){
+  let h='<div class="wrap"><h1>Охотник за микроприятностями — мои наблюдения</h1>';
+  for(let i=0;i<5;i++){
+    h+=`<div class="print-day"><h2>День ${i+1}</h2>
+    <p><b>Момент:</b> ${esc(document.getElementById(`event_${i}`).value)}</p>
+    <p><b>Больше про:</b> ${esc(radio(`kind_${i}`))}</p>
+    <p><b>Сдвиг:</b> ${document.getElementById(`shift_${i}`).value}/10</p>
+    <p><b>Что было приятным / восстанавливающим:</b> ${esc(document.getElementById(`detail_${i}`).value)}</p></div>`;
+  }
+  h+=`<div class="print-day"><h2>В конце недели</h2>
+  <p><b>Что повторялось:</b> ${esc(document.getElementById('repeat').value)}</p>
+  <p><b>Что хочется повторить:</b> ${esc(document.getElementById('again').value)}</p>
+  <p><b>Что я заметила о себе:</b> ${esc(document.getElementById('discover').value)}</p></div></div>`;
+  document.getElementById('printSummary').innerHTML=h;
+}
+function makePDF(){buildSummary();window.print()}
+function downloadTXT(){
+  let a=['ОХОТНИК ЗА МИКРОПРИЯТНОСТЯМИ',''];
+  for(let i=0;i<5;i++)a.push(`День ${i+1}\nМомент: ${document.getElementById(`event_${i}`).value}\nБольше про: ${radio(`kind_${i}`)}\nСдвиг: ${document.getElementById(`shift_${i}`).value}/10\nЧто было приятным/восстанавливающим: ${document.getElementById(`detail_${i}`).value}\n`);
+  a.push(`В конце недели\nЧто повторялось: ${document.getElementById('repeat').value}\nЧто хочется повторить: ${document.getElementById('again').value}\nЧто я заметила о себе: ${document.getElementById('discover').value}`);
+  const blob=new Blob([a.join('\n')],{type:'text/plain;charset=utf-8'}),u=URL.createObjectURL(blob),x=document.createElement('a');
+  x.href=u;x.download='micropractice.txt';x.click();URL.revokeObjectURL(u);
+}
+function clearAll(){
+  if(!confirm('Очистить все ответы?'))return;
+  document.querySelectorAll('[data-save]').forEach(el=>{localStorage.removeItem(key(el));if(el.type==='radio'||el.type==='checkbox')el.checked=false;else if(el.type==='range')el.value=1;else el.value=''});
+  for(let i=0;i<5;i++)document.getElementById(`val_${i}`).textContent='1'; progress();
+}
+restore();
+</script>
+</body>
+</html>
